@@ -1,0 +1,5 @@
+{
+    "Sandbox_LiveWireLGEE": "LiveWire + LG Extended Electricity",
+    "Sandbox_LiveWireLGEE_PowerRangeOverride": "LiveWire power range override",
+    "Sandbox_LiveWireLGEE_PowerRangeOverride_tooltip": "0 uses the vanilla default of 20 tiles. Set 1-100 to choose LiveWire's horizontal power range while LG Extended Electricity's range takeover is active."
+}

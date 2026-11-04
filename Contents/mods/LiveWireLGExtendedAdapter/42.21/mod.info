@@ -2,5 +2,6 @@ name=LiveWire + LG Extended Electricity Adapter
 id=LiveWireLGEEAdapter
 description=Compatibility adapter that lets LiveWire's inverter range work with LG Extended Electricity's generator-range takeover.
 versionMin=42.21
-modversion=0.1.0
+modversion=0.0.2
 require=batman_LiveWire,LGExtendedElectricity
+poster=poster.png

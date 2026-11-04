@@ -1,0 +1,58 @@
+[h1]LiveWire + LG Extended Electricity Adapter[/h1]
+
+[b]Project Zomboid Build 42.21 · Mod ID: LiveWireLGEEAdapter[/b]
+
+Keep LiveWire's inverter coverage working when [b]LG Extended Electricity (LGEE)[/b]'s generator-range takeover is enabled. This lightweight compatibility adapter lets LiveWire's inverters continue to provide their normal radius-based power coverage alongside LGEE.
+
+[h2]Requirements[/h2]
+
+[list]
+[*]Project Zomboid Build 42.21
+[*]LiveWire (Mod ID: [code]batman_LiveWire[/code])
+[*]LG Extended Electricity (Mod ID: [code]LGExtendedElectricity[/code])
+[/list]
+
+The adapter declares both mods as dependencies. Enable them together with this adapter.
+
+[b]This mod is only required if you use both LiveWire and LG Extended Electricity.[/b]
+
+[h2]Installation[/h2]
+
+[list=1]
+[*]Subscribe to LiveWire and LG Extended Electricity.
+[*]Subscribe to this adapter.
+[*]In the Mods menu, enable LiveWire, LG Extended Electricity, and [b]LiveWire + LG Extended Electricity Adapter[/b].
+[/list]
+
+For multiplayer, install and enable the adapter on the server and clients. Configure sandbox options on the server.
+
+[h2]Sandbox settings[/h2]
+
+When LGEE's generator-range takeover is active, the adapter offers one setting under [b]LiveWire + LG Extended Electricity[/b]:
+
+[list]
+[*][b]LiveWire power range override:[/b] 0–100 tiles
+[/list]
+
+The default value [b]0[/b] uses the 20-tile horizontal default. Choose a positive value to override the horizontal range. Vertical reach stays at the default of 3 floors while the takeover is active; there is no vertical override setting. When LGEE's takeover is inactive, LiveWire's original range behavior is left unchanged.
+
+[h2]What this adapter does[/h2]
+
+[list]
+[*]Preserves LiveWire's inverter radius coverage while LGEE's generator-range takeover is active.
+[*]Integrates coverage through LGEE's relay system automatically. No relay crafting, placement, or wiring is needed for LiveWire.
+[*]Keeps coverage limited to LiveWire's configured horizontal radius and 3-floor vertical range while takeover is active; it does not power an entire building.
+[*]Avoids missing squares and squares that already contain a generator.
+[*]If compatible LGEE coverage APIs are unavailable, logs a warning and leaves LiveWire's original range behavior in place.
+[/list]
+
+This adapter works alongside LiveWire and LGEE; it does not replace or modify either mod.
+
+[h2]Troubleshooting[/h2]
+
+[list]
+[*]Make sure all three mods are enabled and their Mod IDs match the requirements above.
+[*]Range overrides only apply while LGEE's generator-range takeover is active. A value of 0 uses LiveWire's default for that range.
+[*]If the adapter reports unsupported coverage APIs, check for a version of LGEE compatible with Build 42.21.
+[*]Look in the game log for messages tagged [code][LiveWireLGEEAdapter][/code].
+[/list]
