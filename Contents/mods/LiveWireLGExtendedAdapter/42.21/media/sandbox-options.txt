@@ -5,9 +5,3 @@ option LiveWireLGEE.PowerRangeOverride
     type = integer, min = 0, max = 100, default = 0,
     page = LiveWireLGEE, translation = LiveWireLGEE_PowerRangeOverride,
 }
-
-option LiveWireLGEE.FloorRangeOverride
-{
-    type = integer, min = 0, max = 15, default = 0,
-    page = LiveWireLGEE, translation = LiveWireLGEE_FloorRangeOverride,
-}

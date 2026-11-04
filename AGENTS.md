@@ -10,7 +10,7 @@
 ## Compatibility behavior
 
 - Without LGEE's generator-range takeover, preserve LiveWire's original behavior and range functions.
-- When takeover is active and the required LGEE APIs are available, use LiveWire's configured horizontal radius and vertical range. The adapter's `0` sandbox overrides mean the vanilla defaults: 20 tiles and 3 floors. Positive values override each range independently.
+- When takeover is active and the required LGEE APIs are available, use LiveWire's configured horizontal radius and the fixed default vertical range of 3 floors. The adapter's horizontal `0` sandbox override means the vanilla default of 20 tiles; positive values override the horizontal range. There is no vertical override.
 - Do not change the global vanilla generator radius to work around LGEE's takeover, and do not turn LiveWire's radius-based coverage into whole-building coverage.
 - Check required APIs before wrapping functions. If integration APIs are missing or unsupported, log a useful warning and retain the original LiveWire behavior.
 

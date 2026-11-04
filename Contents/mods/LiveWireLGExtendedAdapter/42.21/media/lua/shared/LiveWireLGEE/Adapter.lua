@@ -37,10 +37,11 @@ local function supported()
         and type(EE.generatorVertical) == "function"
         and type(EE.engineRange) == "function"
         and type(EE.engineVerticalRange) == "function"
-        and type(EE.discRegistrations) == "function"
+        and type(EE.cover) == "function"
         and type(EE.stackCover) == "function"
         and type(EE.noteRelay) == "function"
         and type(EE.beginRelayDiff) == "function"
+        and type(EE.relayKey) == "function"
         and type(EE.CHUNK) == "number"
 end
 
@@ -75,11 +76,7 @@ Config.tileRange = function()
 end
 
 Config.verticalRange = function()
-    if integrationActive() then
-        local override = rangeOverride("FloorRangeOverride", 15)
-        if override and override > 0 then return override end
-        return 3
-    end
+    if integrationActive() then return 3 end
     return originalVerticalRange()
 end
 
@@ -123,29 +120,42 @@ local function circleInChunk(anchor, radius, kx, ky)
     return flat
 end
 
-local function registrationsFor(anchor)
-    local cell = getCell()
-    if not cell or type(anchor.x) ~= "number" or type(anchor.y) ~= "number"
-        or type(anchor.z) ~= "number" then
-        return {}
-    end
+local coverageCaches = {}
 
+local function chunkKey(kx, ky)
+    return tostring(kx) .. ":" .. tostring(ky)
+end
+
+local function cacheForAnchor(id, anchor)
     local radius = Config.tileRange()
     local vertical = Config.verticalRange()
     local engine = EE.engineRange()
     local engineVertical = EE.engineVerticalRange()
-    if type(radius) ~= "number" or type(vertical) ~= "number"
-        or type(engine) ~= "number" or type(engineVertical) ~= "number"
-        or radius < engine or vertical < engineVertical then
-        return {}
+    if type(anchor.x) ~= "number" or type(anchor.y) ~= "number"
+        or type(anchor.z) ~= "number" or type(radius) ~= "number"
+        or type(vertical) ~= "number" or type(engine) ~= "number"
+        or type(engineVertical) ~= "number" then
+        return nil
     end
 
-    local output = {}
-    local planned = EE.discRegistrations(anchor.x, anchor.y, anchor.z, radius, engine,
-        function(x, y, z) return canHost(cell, x, y, z) end, output)
-    if not planned then return {} end
+    local signature = table.concat({
+        tostring(anchor.x), tostring(anchor.y), tostring(anchor.z), tostring(radius),
+        tostring(vertical), tostring(engine), tostring(engineVertical),
+    }, ":")
+    local cache = coverageCaches[id]
+    if cache and cache.signature == signature then return cache end
 
-    if vertical > engineVertical then
+    cache = {
+        signature = signature,
+        radius = radius,
+        vertical = vertical,
+        engine = engine,
+        engineVertical = engineVertical,
+        chunks = {},
+        chunkByKey = {},
+    }
+
+    if radius >= engine and vertical >= engineVertical then
         local kx0, kx1 = math.floor((anchor.x - radius) / EE.CHUNK),
             math.floor((anchor.x + radius) / EE.CHUNK)
         local ky0, ky1 = math.floor((anchor.y - radius) / EE.CHUNK),
@@ -154,14 +164,75 @@ local function registrationsFor(anchor)
             for kx = kx0, kx1 do
                 local flat = circleInChunk(anchor, radius, kx, ky)
                 if #flat > 0 then
-                    EE.stackCover(flat, kx, ky, anchor.z, vertical, engine, engineVertical,
-                        function(x, y, z) return exists(cell, x, y, z) end,
-                        function(x, y, z) return canHost(cell, x, y, z) end, output)
+                    local key = chunkKey(kx, ky)
+                    local chunk = {
+                        key = key, kx = kx, ky = ky, flat = flat,
+                    }
+                    cache.chunks[#cache.chunks + 1] = chunk
+                    cache.chunkByKey[key] = chunk
                 end
             end
         end
     end
-    return output
+
+    coverageCaches[id] = cache
+    return cache
+end
+
+local function stampRegistrations(registrations)
+    for i = 1, #registrations do
+        local registration = registrations[i]
+        registration.key = EE.relayKey(registration)
+    end
+    return registrations
+end
+
+local function registrationsForChunk(cell, anchor, cache, chunk)
+    local registrations = {}
+    local radius, vertical = cache.radius, cache.vertical
+    local engine, engineVertical = cache.engine, cache.engineVertical
+
+    if radius == engine then
+        local minX, minY = chunk.kx * EE.CHUNK, chunk.ky * EE.CHUNK
+        local maxX, maxY = minX + EE.CHUNK - 1, minY + EE.CHUNK - 1
+        local nearestX = math.max(minX, math.min(anchor.x, maxX))
+        local nearestY = math.max(minY, math.min(anchor.y, maxY))
+        local dx, dy = nearestX - anchor.x, nearestY - anchor.y
+        if dx * dx + dy * dy <= radius * radius then
+            registrations[1] = {
+                x = anchor.x, y = anchor.y, z = anchor.z, kx = chunk.kx, ky = chunk.ky,
+            }
+        end
+    else
+        local planned = EE.cover(chunk.flat, anchor.z, engine, function(x, y, z)
+            return canHost(cell, x, y, z)
+        end, registrations)
+        if not planned then return {} end
+    end
+
+    if vertical > engineVertical then
+        EE.stackCover(chunk.flat, chunk.kx, chunk.ky, anchor.z, vertical, engine,
+            engineVertical, function(x, y, z) return exists(cell, x, y, z) end,
+            function(x, y, z) return canHost(cell, x, y, z) end, registrations)
+    end
+    return stampRegistrations(registrations)
+end
+
+local function invalidateCoverageChunk(cx, cy)
+    -- A host square can sit up to the engine radius across a target chunk boundary.
+    local reach = math.ceil(EE.engineRange() / EE.CHUNK)
+    for _, cache in pairs(coverageCaches) do
+        for ky = cy - reach, cy + reach do
+            for kx = cx - reach, cx + reach do
+                local chunk = cache.chunkByKey[chunkKey(kx, ky)]
+                if chunk then chunk.registrations = nil end
+            end
+        end
+    end
+end
+
+local function invalidateCoverageAt(x, y)
+    invalidateCoverageChunk(math.floor(x / EE.CHUNK), math.floor(y / EE.CHUNK))
 end
 
 local originalApply = Anchor.apply
@@ -177,15 +248,36 @@ EE.beginRelayDiff = function(...)
 
     local ok, anchors = pcall(Anchor.table)
     if not ok or type(anchors) ~= "table" then return diff end
-    for _, anchor in pairs(anchors) do
+    local cell = getCell()
+    if not cell then return diff end
+    for id in pairs(coverageCaches) do
+        local anchor = anchors[id]
+        if not anchor or anchor.on ~= true then coverageCaches[id] = nil end
+    end
+    for id, anchor in pairs(anchors) do
         if anchor and anchor.on == true then
-            local planned, registrations = pcall(registrationsFor, anchor)
-            if planned and type(registrations) == "table" then
-                for i = 1, #registrations do
-                    local added = pcall(EE.noteRelay, diff, registrations[i])
-                    if not added then
-                        warnOnce("diff", "Could not add LiveWire coverage to LGEE's relay diff.")
-                        break
+            local planned, cache = pcall(cacheForAnchor, id, anchor)
+            if planned and type(cache) == "table" then
+                for c = 1, #cache.chunks do
+                    local chunk = cache.chunks[c]
+                    local registrations = chunk.registrations
+                    if not registrations then
+                        local calculated, result = pcall(registrationsForChunk, cell, anchor,
+                            cache, chunk)
+                        if calculated and type(result) == "table" then
+                            registrations = result
+                            chunk.registrations = registrations
+                        else
+                            warnOnce("coverage", "Could not plan one or more LiveWire anchor registrations.")
+                            registrations = {}
+                        end
+                    end
+                    for i = 1, #registrations do
+                        local added = pcall(EE.noteRelay, diff, registrations[i])
+                        if not added then
+                            warnOnce("diff", "Could not add LiveWire coverage to LGEE's relay diff.")
+                            break
+                        end
                     end
                 end
             else
@@ -233,6 +325,7 @@ Anchor.set = function(id, anchor, on)
     local result = originalSet(id, anchor, on)
     knownAnchors[id] = current
     if changed and authority() and integrationActive() then
+        coverageCaches[id] = nil
         pendingSweep = true
         pendingUrgent = true
     end
@@ -240,11 +333,52 @@ Anchor.set = function(id, anchor, on)
 end
 
 Events.OnInitGlobalModData.Add(function()
-    if authority() and integrationActive() then pendingSweep = true end
+    if authority() and integrationActive() then
+        coverageCaches = {}
+        pendingSweep = true
+    end
 end)
 
-Events.LoadChunk.Add(function()
-    if authority() and integrationActive() then pendingSweep = true end
+Events.LoadChunk.Add(function(chunk)
+    if not authority() or not chunk then return end
+    local ok, cx, cy = pcall(Anchor.chunkCoords, chunk)
+    if ok and type(cx) == "number" and type(cy) == "number" then
+        -- LGEE already coalesces a sweep for chunk loads; only invalidate affected plans.
+        invalidateCoverageChunk(cx, cy)
+    elseif not ok then
+        warnOnce("chunk", "Could not invalidate cached coverage after a chunk load.")
+    end
+end)
+
+local function invalidateObjectCoverage(object)
+    if not authority() or not object or not instanceof(object, "IsoGenerator") then return end
+    local ok, x, y = pcall(function()
+        local square = object:getSquare()
+        if not square then return nil, nil end
+        return square:getX(), square:getY()
+    end)
+    if ok and type(x) == "number" and type(y) == "number" then
+        invalidateCoverageAt(x, y)
+    elseif not ok then
+        warnOnce("object", "Could not invalidate cached coverage after a world-object change.")
+    end
+end
+
+Events.OnObjectAdded.Add(function(object)
+    if not object or not instanceof(object, "IsoGenerator") then return end
+    invalidateObjectCoverage(object)
+    if authority() and type(EE.requestSweep) == "function" then
+        EE.requestSweep("a generator was placed on cached LiveWire coverage")
+    end
+end)
+Events.OnObjectAboutToBeRemoved.Add(invalidateObjectCoverage)
+
+Events.OnProcessAction.Add(function(action, _, args)
+    if action ~= "build" or not authority() or type(args) ~= "table" then
+        return
+    end
+    local x, y = tonumber(args.x), tonumber(args.y)
+    if x and y then invalidateCoverageAt(math.floor(x), math.floor(y)) end
 end)
 
 Events.OnTick.Add(function()

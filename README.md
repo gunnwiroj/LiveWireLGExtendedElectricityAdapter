@@ -14,21 +14,20 @@ The adapter works alongside both mods; it does not replace or modify them.
 ## Installation
 
 1. Install LiveWire and LG Extended Electricity.
-2. Copy the `LiveWireLGExtendedAdapter` mod folder into your Project Zomboid `mods` directory. Keep the `42.21` subfolder intact so the path is `mods/LiveWireLGExtendedAdapter/42.21/mod.info`.
+2. Subscribe to the [LiveWire + LG Extended Electricity Adapter on Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3833576038) (Workshop ID: `3833576038`). Its Mod ID is `LiveWireLGEEAdapter`.
 3. Enable **LiveWire + LG Extended Electricity Adapter** in the Mods menu, along with both required mods.
 
 The adapter declares both dependencies in its mod metadata. In multiplayer, enable it on the server and clients, and configure sandbox options on the server.
 
 ## Sandbox settings
 
-When LGEE's generator-range takeover is active, the adapter provides two independent LiveWire overrides:
+When LGEE's generator-range takeover is active, the adapter provides a LiveWire horizontal range override:
 
 | Setting | Range | Default (`0`) |
 | --- | ---: | --- |
 | LiveWire power range override | `0`–`100` tiles | 20 tiles |
-| LiveWire vertical range override (floors) | `0`–`15` floors | 3 floors |
 
-Set either value to `0` to use that range's default; set a positive value to override it. The horizontal and vertical settings can be adjusted independently. When takeover is inactive, LiveWire's original range settings are left unchanged.
+Set the value to `0` to use the 20-tile default, or set a positive value to override the horizontal range. Vertical reach remains at the default of 3 floors while LGEE's takeover is active; there is no vertical override setting. When takeover is inactive, LiveWire's original range settings are left unchanged.
 
 ## What to expect
 
